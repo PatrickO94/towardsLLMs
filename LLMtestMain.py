@@ -14,6 +14,30 @@ for x in range(100):
     print(f"Progress: {x}%", end='\r')
     sleep(0.1)   
 """
+@torch.no_grad()
+def estimate_loss(model, eval_iters, dl_train, dl_val, device):
+    out = {}
+    model.eval()
+    for split in ['train', 'valid']:
+        losses = torch.zeros(eval_iters)
+        itt = iter(dl_train)
+        itv = iter(dl_val)
+        for k in range(eval_iters):
+            try:
+                x, y = next(itt) if split == 'train' else next(itv)
+            except StopIteration:
+                # Restart the iterator if the DataLoader is exhausted
+                itt = iter(dl_train)
+                itv = iter(dl_val)
+                x, y = next(itt) if split == 'train' else next(itv)
+            logits, loss = model(x.to(device),y.to(device))
+            losses[k] = loss.item()
+        out[split] = losses.mean()
+    model.train()
+    return out
+
+
+
 if __name__ == "__main__":
 
     if torch.cuda.is_available():
@@ -28,6 +52,7 @@ if __name__ == "__main__":
     train_ds, val_ds = kds.get_train_val_split(0.1)
     print(len(train_ds), len(val_ds))
     dl_train = DataLoader(train_ds, cfg.BATCH_SIZE, shuffle=False)
+    dl_val = DataLoader(val_ds, cfg.BATCH_SIZE, shuffle=False)
     # print(next(iter(dl_train)))
     # x, y = next(iter(dl_train))
     # print(f"x-shape: {x.shape}, y-shape: {y.shape}")
@@ -51,6 +76,8 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
         print(epoch)
+        out = estimate_loss(m, 50, dl_train, dl_val, device)
+        print(out)
     print(loss.item())
     print(kds.tk.decode(m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=100)[0].tolist()))
 
