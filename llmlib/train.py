@@ -4,6 +4,7 @@ import time
 from torch import nn
 
 
+
 def train_loop(model, dl_train, dl_val, dl_test, plotter: PlotterION, epochs, optimizer, criterion, use_lr_scheduler=False, use_smoothing=True):
     if torch.cuda.is_available():
         device = torch.device("cuda")
@@ -110,6 +111,7 @@ def train_loop(model, dl_train, dl_val, dl_test, plotter: PlotterION, epochs, op
         train_std_list.append(torch.std(torch.tensor(batch_train_losses)).item())
     return train_loss_list, train_std_list
 
+@torch.no_grad()
 def val_loop(model):
     model.eval()
     if torch.cuda.is_available():
@@ -159,7 +161,7 @@ def val_loop(model):
         scheduler.step()
     return cp_saver.kpi_list, cp_saver.cp_list, train_loss_list, val_loss_list, test_loss_ls, train_std_list, val_std_list, test_std_list, model
 
-
+@torch.no_grad()
 def test_loop(model, criterion, test_data_loader):
     model.eval()
     if torch.cuda.is_available():

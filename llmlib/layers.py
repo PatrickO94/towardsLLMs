@@ -76,3 +76,12 @@ class AttentionLayer(nn.Module):
         out = self.out_proj(out)
 
         return out
+
+class SimpAttentionLayer(nn.Module):
+    def __init__(self, input_dim, output_dim=None, num_heads=8, dropout=0.1):
+        super(SimpAttentionLayer, self).__init__()
+        self.input_dim = input_dim
+        self.output_dim = output_dim if output_dim is not None else input_dim
+        self.num_heads = num_heads
+        self.head_dim = self.output_dim // num_heads
+
