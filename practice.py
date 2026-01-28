@@ -1,11 +1,13 @@
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from llmlib import cfg
 
 torch.manual_seed(1337)
 
-B, T, C = cfg.BATCH_SIZE, cfg.CONTEXT_LEN, 2
+B, T, C = cfg.BATCH_SIZE, cfg.CONTEXT_LEN, 32
 x = torch.randn(B, T, C)
+"""
 print(x.shape)
 # inefficient way of avg-attention
 xbow = torch.zeros((B, T, C))
@@ -43,5 +45,24 @@ wei = wei.masked_fill(tril==0, float('-inf'))
 wei = F.softmax(wei, dim=-1)
 xbow3 = wei @ x
 print(torch.allclose(xbow2, xbow3))
+"""
+# single Head self-attention
+head_size = 16
+key = nn.Linear(C, head_size, bias=False)
+query = nn.Linear(C, head_size, bias=False)
+value = nn.Linear(C, head_size, bias=False)
+k = key(x) # (B, T, 16)
+q = query(x) # (B, T, 16)
 
+wei = q @ k.transpose(-2, -1) # (B, T, 16) @ (B, 16, T) ---> (B, T, T)
+tril = torch.tril(torch.ones(cfg.CONTEXT_LEN, cfg.CONTEXT_LEN))
+# wei = torch.zeros(cfg.CONTEXT_LEN, cfg.CONTEXT_LEN)
+wei = wei.masked_fill(tril==0, float('-inf'))
+wei = F.softmax(wei, dim=-1)
+
+v = value(x)
+out = wei @ v * head_size**-0.5
+print(out.shape)
+print(out)
+print(wei[0])
 

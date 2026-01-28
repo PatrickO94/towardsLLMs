@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 import torch.nn.functional as F
+from .config import cfg
 
 class AttentionLayer(nn.Module):
     def __init__(self, input_dim, output_dim=None, num_heads=8, dropout=0.1):
@@ -77,11 +78,61 @@ class AttentionLayer(nn.Module):
 
         return out
 
-class SimpAttentionLayer(nn.Module):
-    def __init__(self, input_dim, output_dim=None, num_heads=8, dropout=0.1):
-        super(SimpAttentionLayer, self).__init__()
-        self.input_dim = input_dim
-        self.output_dim = output_dim if output_dim is not None else input_dim
-        self.num_heads = num_heads
-        self.head_dim = self.output_dim // num_heads
+class FeedForward(nn.Module):
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(n_embd, 4*n_embd),
+                                 nn.ReLU(),
+                                 nn.Linear(4*n_embd, n_embd),
+                                 nn.Dropout(cfg.DROPOUT),)
+    def forward(self, x):
+        return self.net(x)
+
+class Head(nn.Module):
+    def __init__(self, head_size):
+        super().__init__()
+        self.key = nn.Linear(cfg.N_EMBD, head_size, bias=False)
+        self.query = nn.Linear(cfg.N_EMBD, head_size, bias=False)
+        self.value = nn.Linear(cfg.N_EMBD, head_size, bias=False)
+        self.register_buffer('tril', torch.tril(torch.ones(cfg.CONTEXT_LEN, cfg.CONTEXT_LEN)))
+        self.dropout = nn.Dropout(cfg.DROPOUT)
+
+    def forward(self, x, decoder=True):
+        B, T, C = x.shape
+        k = self.key(x) # (B, T, C-headsize)
+        q = self.query(x) # (B, T, C-headsize)
+        weights = q @ k.transpose(-2, -1) * C**-0.5 # (B, T, T)
+        if decoder:
+            weights = weights.masked_fill(self.tril[:T, :T] == 0, float('-inf')) # mask influence of future nodes/tokens
+        weights = F.softmax(weights, dim=-1)
+        weights = self.dropout(weights)
+        v = self.value(x) # (B, T, C)
+        out = weights @ v # (B, T, T) @ (B, T, C-head)---> (B, T, C-head)
+        return out
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, num_heads, head_size):
+        super().__init__()
+        self.heads = nn.ModuleList([Head(head_size) for _ in range(num_heads)])
+        self.projection = nn.Linear(cfg.N_EMBD, cfg.N_EMBD)
+        self.dropout = nn.Dropout(cfg.DROPOUT)
+    def forward(self, x):
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.projection(out)
+        out = self.dropout(out)
+        return out
+
+class Block(nn.Module):
+    def __init__(self, n_embd, n_heads):
+        super().__init__()
+        head_size = n_embd // n_heads
+        self.sa = MultiHeadAttention(n_heads, head_size)
+        self.ffwd = FeedForward(n_embd)
+        self.ln1 = nn.LayerNorm(n_embd)
+        self.ln2 = nn.LayerNorm(n_embd)
+
+    def forward(self, x):
+        x = x + self.sa(self.ln1(x))
+        x = x + self.ffwd(self.ln2(x))
+        return x
 

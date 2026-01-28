@@ -1,6 +1,7 @@
 from .data.data_sets import KARPDataset
-from .data.util import CharLvlTokeniser
+from .data.util import CharLvlTokeniser, estimate_loss
 from .config import cfg
-from .models import LSTMmodel, BigramLM
+from .models import LSTMmodel, BigramLM, BigramBaseLM, DecoderAttentionLM
 
-__all__ = ['KARPDataset', 'CharLvlTokeniser', 'cfg', 'LSTMmodel', 'BigramLM']
+__all__ = ['KARPDataset', 'CharLvlTokeniser', 'cfg', 'LSTMmodel', 'BigramLM', 'estimate_loss', 'BigramBaseLM',
+           'DecoderAttentionLM']
