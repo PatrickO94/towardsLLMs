@@ -1,3 +1,6 @@
+import copy
+from datetime import datetime
+
 import torch
 from torch.utils.data import DataLoader
 from llmlib import KARPDataset, cfg, BigramLM, estimate_loss, BigramBaseLM, DecoderAttentionLM
@@ -14,6 +17,21 @@ for x in range(100):
     print(f"Progress: {x}%", end='\r')
     sleep(0.1)   
 """
+
+
+def save_checkpoint(model, name, epoch):
+    model_state = copy.deepcopy(model.state_dict())
+    current_date = datetime.now()
+    formatted_date = current_date.strftime("_%Y_%m_%d_t_%H_%M")
+    # Save original and quantized models
+    torch.save(model_state, os.path.join(cfg.MDL_PATH, f"{name}{formatted_date}_E{epoch}.pth"))
+
+def save_output(name, out_list):
+    current_date = datetime.now()
+    formatted_date = current_date.strftime("_%Y_%m_%d_t_%H_%M")
+    with open(os.path.join(cfg.OUT_PATH, f'out{formatted_date}_Model_{name}.txt'), 'w') as file:
+        file.writelines(item + '\n' for item in out_list)
+
 
 
 
@@ -91,12 +109,16 @@ if __name__ == "__main__":
         for i, (x, y) in enumerate(dl_train):
             if i % cfg.EVAL_INTERVAL == 0:
                 out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
-                print(out)
+                print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | progress: {(i/len(dl_train))*100:.2f}% | Epoch {epoch + 1} of {cfg.EPOCHS}")
             logits, loss = m.forward(x.to(device), y.to(device))
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
         print(epoch)
         out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
-        print(out)
-    print(kds.tk.decode(m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)[0].tolist()))
+        print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | End of Epoch {epoch + 1} of {cfg.EPOCHS}")
+    gen_batch = m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)
+    print(kds.tk.decode(gen_batch[0].tolist()))
+    gens = [kds.tk.decode(b.tolist()) for b in gen_batch]
+    save_checkpoint(m, "DecoderTransformerV1.0", cfg.EPOCHS)
+    save_output("DecoderTransformerV1.0", gens)
