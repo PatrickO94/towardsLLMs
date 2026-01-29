@@ -107,6 +107,7 @@ if __name__ == "__main__":
 
     for epoch in range(cfg.EPOCHS):
         for i, (x, y) in enumerate(dl_train):
+
             if i % cfg.EVAL_INTERVAL == 0:
                 out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
                 print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | progress: {(i/len(dl_train))*100:.2f}% | Epoch {epoch + 1} of {cfg.EPOCHS}")
@@ -114,9 +115,10 @@ if __name__ == "__main__":
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
-        print(epoch)
+
         out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
         print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | End of Epoch {epoch + 1} of {cfg.EPOCHS}")
+
     gen_batch = m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)
     print(kds.tk.decode(gen_batch[0].tolist()))
     gens = [kds.tk.decode(b.tolist()) for b in gen_batch]
