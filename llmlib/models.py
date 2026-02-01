@@ -283,17 +283,17 @@ class BigramLM(nn.Module):
 
 # noinspection DuplicatedCode
 class DecoderAttentionLM(nn.Module):
-    def __init__(self):
+    def __init__(self, vocab_size):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(cfg.VOCAB_SIZE, cfg.N_EMBD)
+        self.token_embedding_table = nn.Embedding(vocab_size, cfg.N_EMBD)
         self.position_embedding_table = nn.Embedding(cfg.CONTEXT_LEN, cfg.N_EMBD)
         # self.sa_head = Head(cfg.N_EMBD)
         # self.sa_heads = MultiHeadAttention(4, cfg.N_EMBD//4) # 4 head concat to 4 * 1/4 emdb = embd
         self.blocks = nn.Sequential(*[Block(cfg.N_EMBD,n_heads=cfg.N_HEADS) for _ in range(cfg.N_LAYERS)])
         self.lnf = nn.LayerNorm(cfg.N_EMBD)
         # self.ffwd = FeedForward(cfg.N_EMBD) # feed forward -> 'think' on att per node
-        self.lm_head = nn.Linear(cfg.N_EMBD, cfg.VOCAB_SIZE)
+        self.lm_head = nn.Linear(cfg.N_EMBD, vocab_size)
 
     def forward(self, idx, targets=None):
         #idx and targets are both (B, T, C)

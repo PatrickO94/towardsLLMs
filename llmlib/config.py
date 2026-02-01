@@ -1,7 +1,7 @@
 
 class Config:
 
-    EPOCHS = 2
+    EPOCHS = 1
     BATCH_SIZE = 64 # 64 # B
     CONTEXT_LEN = 256 # aka BLOCK_SIZE, T
     LR = 0.0003

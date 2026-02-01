@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from llmlib import cfg
-
+from datasets import load_dataset
 torch.manual_seed(1337)
 
 B, T, C = cfg.BATCH_SIZE, cfg.CONTEXT_LEN, 32
@@ -47,6 +47,7 @@ xbow3 = wei @ x
 print(torch.allclose(xbow2, xbow3))
 """
 # single Head self-attention
+"""
 head_size = 16
 key = nn.Linear(C, head_size, bias=False)
 query = nn.Linear(C, head_size, bias=False)
@@ -65,4 +66,4 @@ out = wei @ v * head_size**-0.5
 print(out.shape)
 print(out)
 print(wei[0])
-
+"""

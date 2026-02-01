@@ -1,9 +1,9 @@
 import copy
 from datetime import datetime
-
+from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
-from llmlib import KARPDataset, cfg, BigramLM, estimate_loss, BigramBaseLM, DecoderAttentionLM
+from llmlib import KARPDataset, cfg, BigramLM, estimate_loss, BigramBaseLM, DecoderAttentionLM, OWT2Dataset
 import os
 from time import sleep
 
@@ -35,7 +35,6 @@ def save_output(name, out_list):
 
 
 
-
 if __name__ == "__main__":
 
     if torch.cuda.is_available():
@@ -44,7 +43,7 @@ if __name__ == "__main__":
         print("cuda unavailable")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    """
     #######################---DATA---###############################
     kds = KARPDataset()
     train_ds, val_ds = kds.get_train_val_split(0.1)
@@ -54,7 +53,7 @@ if __name__ == "__main__":
     # print(next(iter(dl_train)))
     # x, y = next(iter(dl_train))
     # print(f"x-shape: {x.shape}, y-shape: {y.shape}")
-    """
+    
     ########################---BIGRAM-BASE---################################
     m = BigramBaseLM(kds.vocab_size)
     # out, loss = m(x,y)
@@ -99,8 +98,9 @@ if __name__ == "__main__":
         print(out)
     print(kds.tk.decode(m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=100)[0].tolist()))
     """
+    """
     #######################---BIGRAM-ATT-TRAIN---########################################
-    m = DecoderAttentionLM()
+    m = DecoderAttentionLM(vocab_size=65)
     torch.cuda.empty_cache()
     optimizer = torch.optim.AdamW(m.parameters(), lr=cfg.LR)
     m.to(device)
@@ -124,3 +124,45 @@ if __name__ == "__main__":
     gens = [kds.tk.decode(b.tolist()) for b in gen_batch]
     save_checkpoint(m, "DecoderTransformerV1.0", cfg.EPOCHS)
     save_output("DecoderTransformerV1.0", gens)
+    """
+    #######################---ATT-TRAIN-OWT2--########################################
+    print("initializing data...")
+    owt2 = OWT2Dataset()
+    # print(len(owt2))
+    # print(owt2[0])
+    # print(next(iter(DataLoader(owt2, batch_size=cfg.BATCH_SIZE, shuffle=False))))
+    _, tmp = owt2.train_val_split(val_perc=0.25)
+    train_ds, val_ds = tmp.train_val_split()
+    del owt2, tmp
+    print("length of train ds: ", len(train_ds))
+    print("length of val ds: ", len(val_ds))
+    dl_train = DataLoader(train_ds, batch_size=cfg.BATCH_SIZE, shuffle=True)
+    dl_val = DataLoader(val_ds, batch_size=cfg.BATCH_SIZE, shuffle=False)
+    # print(next(iter(dl_train))[0])
+    # print(next(iter(dl_val))[1])
+
+    print("initializing model...")
+    m = DecoderAttentionLM(vocab_size=train_ds.vocab_size)
+    torch.cuda.empty_cache()
+    optimizer = torch.optim.AdamW(m.parameters(), lr=cfg.LR)
+    m.to(device)
+    print("training starts...")
+    for epoch in range(cfg.EPOCHS):
+        for i, (x, y) in enumerate(dl_train):
+
+            if i % cfg.EVAL_INTERVAL == 0:
+                out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
+                print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | progress: {(i/len(dl_train))*100:.2f}% | Epoch {epoch + 1} of {cfg.EPOCHS}")
+            logits, loss = m.forward(x.to(device), y.to(device))
+            optimizer.zero_grad(set_to_none=True)
+            loss.backward()
+            optimizer.step()
+
+        out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
+        print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | End of Epoch {epoch + 1} of {cfg.EPOCHS}")
+
+    gen_batch = m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)
+    print(kds.tk.decode(gen_batch[0].tolist()))
+    gens = [kds.tk.decode(b.tolist()) for b in gen_batch]
+    save_checkpoint(m, "DecoderTransformerV1.0_OWT2", cfg.EPOCHS)
+    save_output("DecoderTransformerV1.0_OWT2", gens)

@@ -1,4 +1,9 @@
 import torch
+from torch.nn.utils.rnn import pad_sequence
+from transformers import AutoTokenizer  # or use tiktoken / sentencepiece directly
+
+
+
 
 # check googles sentencePiece tokeniser for a more efficient but more complicated one.
 class CharLvlTokeniser:
