@@ -131,9 +131,9 @@ if __name__ == "__main__":
     # print(len(owt2))
     # print(owt2[0])
     # print(next(iter(DataLoader(owt2, batch_size=cfg.BATCH_SIZE, shuffle=False))))
-    _, tmp = owt2.train_val_split(val_perc=0.25)
+    _, tmp = owt2.train_val_split(val_perc=0.25) # cropping ds to reduce training time
     train_ds, val_ds = tmp.train_val_split()
-    del owt2, tmp
+    del owt2, tmp, _
     print("length of train ds: ", len(train_ds))
     print("length of val ds: ", len(val_ds))
     dl_train = DataLoader(train_ds, batch_size=cfg.BATCH_SIZE, shuffle=True)
@@ -162,7 +162,7 @@ if __name__ == "__main__":
         print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | End of Epoch {epoch + 1} of {cfg.EPOCHS}")
 
     gen_batch = m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)
-    print(kds.tk.decode(gen_batch[0].tolist()))
-    gens = [kds.tk.decode(b.tolist()) for b in gen_batch]
+    print(train_ds.tokenizer.decode(gen_batch[0].tolist()))
+    gens = [train_ds.tokenizer.decode(b.tolist()) for b in gen_batch]
     save_checkpoint(m, "DecoderTransformerV1.0_OWT2", cfg.EPOCHS)
     save_output("DecoderTransformerV1.0_OWT2", gens)

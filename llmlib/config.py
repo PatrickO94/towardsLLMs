@@ -2,11 +2,11 @@
 class Config:
 
     EPOCHS = 1
-    BATCH_SIZE = 64 # 64 # B
+    BATCH_SIZE = 32 # 64 # B
     CONTEXT_LEN = 256 # aka BLOCK_SIZE, T
     LR = 0.0003
     N_EMBD = 384 # C-emb, make sure that N_EMBD/N_HEADS is int
-    VOCAB_SIZE = 65 # C-base-bigram
+    # VOCAB_SIZE = 65 # C-base-bigram, deprecated
     EVAL_ITERS = 200
     EVAL_INTERVAL = 500
     DROPOUT = 0.2
