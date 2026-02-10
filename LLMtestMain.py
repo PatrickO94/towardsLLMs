@@ -1,11 +1,12 @@
 import copy
-from datetime import datetime
+from datetime import datetime, timedelta
+from torchinfo import summary
 from datasets import load_dataset
 import torch
 from torch.utils.data import DataLoader
 from llmlib import KARPDataset, cfg, BigramLM, estimate_loss, BigramBaseLM, DecoderAttentionLM, OWT2Dataset
 import os
-from time import sleep
+from time import sleep, time
 
 """
 def clear_line():
@@ -17,7 +18,14 @@ for x in range(100):
     print(f"Progress: {x}%", end='\r')
     sleep(0.1)   
 """
-
+def get_time(start):
+    duration = datetime.now() - start
+    total_seconds = int(duration.total_seconds())  # rounds down
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    seconds = total_seconds % 60
+    return hours, minutes, seconds
+    # print(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
 
 def save_checkpoint(model, name, epoch):
     model_state = copy.deepcopy(model.state_dict())
@@ -138,21 +146,24 @@ if __name__ == "__main__":
     print("length of val ds: ", len(val_ds))
     dl_train = DataLoader(train_ds, batch_size=cfg.BATCH_SIZE, shuffle=True)
     dl_val = DataLoader(val_ds, batch_size=cfg.BATCH_SIZE, shuffle=False)
-    # print(next(iter(dl_train))[0])
+    print(next(iter(dl_train))[0])
     # print(next(iter(dl_val))[1])
 
     print("initializing model...")
     m = DecoderAttentionLM(vocab_size=train_ds.vocab_size)
+    summary(m, input_size=(cfg.BATCH_SIZE, cfg.CONTEXT_LEN), dtypes=[torch.long])
     torch.cuda.empty_cache()
     optimizer = torch.optim.AdamW(m.parameters(), lr=cfg.LR)
     m.to(device)
     print("training starts...")
+    start_time = datetime.now()
     for epoch in range(cfg.EPOCHS):
         for i, (x, y) in enumerate(dl_train):
 
             if i % cfg.EVAL_INTERVAL == 0:
                 out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
-                print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | progress: {(i/len(dl_train))*100:.2f}% | Epoch {epoch + 1} of {cfg.EPOCHS}")
+                hours, minutes, seconds = get_time(start_time)
+                print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | progress: {(i/len(dl_train))*100:.2f}% | Epoch {epoch + 1} of {cfg.EPOCHS} | Time: {hours:02d}:{minutes:02d}:{seconds:02d}")
             logits, loss = m.forward(x.to(device), y.to(device))
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
@@ -161,8 +172,8 @@ if __name__ == "__main__":
         out = estimate_loss(m, cfg.EVAL_ITERS, dl_train, dl_val, device)
         print(f"train-loss: {out["train"]:.4f} | val-loss: {out["valid"]:.4f} | End of Epoch {epoch + 1} of {cfg.EPOCHS}")
 
+    save_checkpoint(m, "DecoderTransformerV1.1_OWT2", cfg.EPOCHS)
     gen_batch = m.generate(torch.zeros((1, 1), dtype=torch.long, device=device), max_new_tokens=10000)
     print(train_ds.tokenizer.decode(gen_batch[0].tolist()))
     gens = [train_ds.tokenizer.decode(b.tolist()) for b in gen_batch]
-    save_checkpoint(m, "DecoderTransformerV1.0_OWT2", cfg.EPOCHS)
-    save_output("DecoderTransformerV1.0_OWT2", gens)
+    save_output("DecoderTransformerV1.1_OWT2", gens)

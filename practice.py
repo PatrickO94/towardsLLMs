@@ -3,7 +3,9 @@ import torch.nn.functional as F
 import torch.nn as nn
 from llmlib import cfg
 from datasets import load_dataset
+from datetime import datetime
 torch.manual_seed(1337)
+from time import sleep
 
 B, T, C = cfg.BATCH_SIZE, cfg.CONTEXT_LEN, 32
 x = torch.randn(B, T, C)
@@ -67,3 +69,13 @@ print(out.shape)
 print(out)
 print(wei[0])
 """
+start_time = datetime.now()
+sleep(5)
+
+duration = datetime.now() - start_time
+total_seconds = int(duration.total_seconds())   # rounds down
+hours   = total_seconds // 3600
+minutes = (total_seconds % 3600) // 60
+seconds = total_seconds % 60
+
+print(f"{hours:02d}:{minutes:02d}:{seconds:02d}")

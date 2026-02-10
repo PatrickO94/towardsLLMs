@@ -3,7 +3,7 @@ import random
 import torch.nn as nn
 import torch.nn.functional as F
 from .config import cfg
-from .layers import Head, MultiHeadAttention, FeedForward, Block
+from .layers import Head, MultiHeadAttention, FeedForward, Block, BlockNew
 
 
 class LSTMmodel(nn.Module):
@@ -290,7 +290,8 @@ class DecoderAttentionLM(nn.Module):
         self.position_embedding_table = nn.Embedding(cfg.CONTEXT_LEN, cfg.N_EMBD)
         # self.sa_head = Head(cfg.N_EMBD)
         # self.sa_heads = MultiHeadAttention(4, cfg.N_EMBD//4) # 4 head concat to 4 * 1/4 emdb = embd
-        self.blocks = nn.Sequential(*[Block(cfg.N_EMBD,n_heads=cfg.N_HEADS) for _ in range(cfg.N_LAYERS)])
+        # self.blocks = nn.Sequential(*[Block(cfg.N_EMBD, n_heads=cfg.N_HEADS) for _ in range(cfg.N_LAYERS)])
+        self.blocks = nn.Sequential(*[BlockNew(cfg.N_EMBD, n_heads=cfg.N_HEADS) for _ in range(cfg.N_LAYERS)])
         self.lnf = nn.LayerNorm(cfg.N_EMBD)
         # self.ffwd = FeedForward(cfg.N_EMBD) # feed forward -> 'think' on att per node
         self.lm_head = nn.Linear(cfg.N_EMBD, vocab_size)

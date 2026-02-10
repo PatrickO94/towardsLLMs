@@ -11,7 +11,7 @@ class Config:
     EVAL_INTERVAL = 500
     DROPOUT = 0.2
     N_HEADS = 6
-    N_LAYERS = 6
+    N_LAYERS = 7
     MDL_PATH = r"/home/rick/PycharmProjects/towardsLLMs/model_archive"
     OUT_PATH = r"/home/rick/PycharmProjects/towardsLLMs/results_archive"
 
